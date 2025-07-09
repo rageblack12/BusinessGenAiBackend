@@ -1,5 +1,5 @@
-// models/user.model.js
 import mongoose from "mongoose";
+import { USER_ROLES } from '../constants/roles.js';
 
 /**
  * User Schema
@@ -13,10 +13,29 @@ import mongoose from "mongoose";
  */
 const userSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true, trim: true },
-    email: { type: String, required: true, unique: true, lowercase: true },
-    password: { type: String, required: true },
-    role: { type: String, enum: ["user", "admin"], default: "user" },
+    name: { 
+      type: String, 
+      required: [true, 'Name is required'], 
+      trim: true,
+      maxlength: [50, 'Name cannot exceed 50 characters']
+    },
+    email: { 
+      type: String, 
+      required: [true, 'Email is required'], 
+      unique: true, 
+      lowercase: true,
+      match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please provide a valid email']
+    },
+    password: { 
+      type: String, 
+      required: [true, 'Password is required'],
+      minlength: [6, 'Password must be at least 6 characters']
+    },
+    role: { 
+      type: String, 
+      enum: Object.values(USER_ROLES), 
+      default: USER_ROLES.USER 
+    },
   },
   {
     timestamps: true,

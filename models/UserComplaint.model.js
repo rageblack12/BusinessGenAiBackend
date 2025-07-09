@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { COMPLAINT_SEVERITY, COMPLAINT_STATUS } from '../constants/roles.js';
 
 /**
  * UserComplaint Schema
@@ -14,14 +15,44 @@ import mongoose from 'mongoose';
  * @property {Date} updatedAt
  */
 const userComplaintSchema = new mongoose.Schema({
-    orderId: { type: String, required: true, trim: true },
-    productType: { type: String, required: true, trim: true },
-    description: { type: String, required: true },
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    severity: {type: String,enum: ['Moderate', 'High', 'Urgent'],default: 'Moderate'},
-    status: {type: String,enum: ['open', 'resolved'],default: 'open'},
-    replies: [{ type: mongoose.Schema.Types.ObjectId, ref: 'ComplaintReply' }],
-    createdAt: { type: Date, default: Date.now }
+    orderId: { 
+      type: String, 
+      required: [true, 'Order ID is required'], 
+      trim: true,
+      maxlength: [50, 'Order ID cannot exceed 50 characters']
+    },
+    productType: { 
+      type: String, 
+      required: [true, 'Product type is required'], 
+      trim: true,
+      maxlength: [100, 'Product type cannot exceed 100 characters']
+    },
+    description: { 
+      type: String, 
+      required: [true, 'Description is required'],
+      maxlength: [1000, 'Description cannot exceed 1000 characters']
+    },
+    userId: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: 'User', 
+      required: true 
+    },
+    severity: {
+      type: String,
+      enum: Object.values(COMPLAINT_SEVERITY),
+      default: COMPLAINT_SEVERITY.MODERATE
+    },
+    status: {
+      type: String,
+      enum: Object.values(COMPLAINT_STATUS),
+      default: COMPLAINT_STATUS.OPEN
+    },
+    replies: [{ 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: 'ComplaintReply' 
+    }],
+}, {
+  timestamps: true
 });
 
 const UserComplaint = mongoose.model('UserComplaint', userComplaintSchema);

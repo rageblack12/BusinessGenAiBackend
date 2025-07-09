@@ -1,4 +1,3 @@
-// models/post.model.js
 import mongoose from "mongoose";
 
 /**
@@ -16,13 +15,39 @@ import mongoose from "mongoose";
  */
 const postSchema = new mongoose.Schema(
   {
-    title: { type: String, required: true, trim: true },
-    description: { type: String, required: true },
-    author: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    likes: { type: Number, default: 0 },
-    likedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-    comments: [{ type: mongoose.Schema.Types.ObjectId, ref: "Comment" }],
-    image: { type: mongoose.Schema.Types.ObjectId, ref: "Image" },
+    title: { 
+      type: String, 
+      required: [true, 'Title is required'], 
+      trim: true,
+      maxlength: [200, 'Title cannot exceed 200 characters']
+    },
+    description: { 
+      type: String, 
+      required: [true, 'Description is required'],
+      maxlength: [2000, 'Description cannot exceed 2000 characters']
+    },
+    author: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "User", 
+      required: true 
+    },
+    likes: { 
+      type: Number, 
+      default: 0,
+      min: [0, 'Likes cannot be negative']
+    },
+    likedBy: [{ 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "User" 
+    }],
+    comments: [{ 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "Comment" 
+    }],
+    image: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "Image" 
+    },
   },
   {
     timestamps: true,
@@ -31,4 +56,3 @@ const postSchema = new mongoose.Schema(
 
 const Post = mongoose.model("Post", postSchema);
 export default Post;
-

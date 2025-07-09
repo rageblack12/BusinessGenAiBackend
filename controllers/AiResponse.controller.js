@@ -1,30 +1,23 @@
 import { InferenceClient } from "@huggingface/inference";
+import { HTTP_STATUS } from '../constants/roles.js';
+import ErrorResponse from '../utils/ErrorResponse.js';
+import asyncHandler from '../utils/asyncHandler.js';
 import dotenv from "dotenv";
 
-// Load environment variables from .env file
 dotenv.config();
 
-// Initialize Hugging Face Inference Client with API key from environment variables
+// Initialize Hugging Face Inference Client
 const client = new InferenceClient(process.env.HUGGING_FACE_API_KEY);
 
 /**
- * Generates a human-like reply to a user comment based on sentiment and description.
+ * Generates a human-like reply to a user comment based on sentiment and description
  * @route POST /api/ai/comment-reply
- * @body { sentiment: String, description: String }
- * @returns { success: Boolean, reply: String }
+ * @access Private
  */
-export const getCommentAIReply = async (req, res) => {
+export const getCommentAIReply = asyncHandler(async (req, res, next) => {
+  const { sentiment, description } = req.body;
+
   try {
-    const { sentiment, description } = req.body;
-
-    // Validate required fields
-    if (!sentiment || !description) {
-      return res.status(400).json({
-        success: false,
-        message: "Sentiment and description are required.",
-      });
-    }
-
     // Generate AI reply using Hugging Face Inference API
     const chatCompletion = await client.chatCompletion({
       provider: "nebius",
@@ -47,36 +40,25 @@ export const getCommentAIReply = async (req, res) => {
       chatCompletion.choices?.[0]?.message?.content ||
       "Sorry, I'm unable to provide a response right now.";
 
-    // Send success response with AI-generated reply
-    res.status(200).json({ success: true, reply });
-  } catch (error) {
-    // Log error and send failure response
-    console.error("AI error:", error);
-    res.status(500).json({
-      success: false,
-      message: "AI service failed.",
+    res.status(HTTP_STATUS.OK).json({ 
+      success: true, 
+      reply 
     });
+  } catch (error) {
+    console.error("AI comment reply error:", error);
+    return next(new ErrorResponse('AI service failed', HTTP_STATUS.INTERNAL_SERVER_ERROR));
   }
-};
+});
 
 /**
- * Generates a professional reply to a user complaint based on severity and description.
+ * Generates a professional reply to a user complaint based on severity and description
  * @route POST /api/ai/complaint-reply
- * @body { severity: String, description: String }
- * @returns { success: Boolean, reply: String }
+ * @access Private
  */
-export const getComplaintAIReply = async (req, res) => {
+export const getComplaintAIReply = asyncHandler(async (req, res, next) => {
+  const { severity, description } = req.body;
+
   try {
-    const { severity, description } = req.body;
-
-    // Validate required fields
-    if (!severity || !description) {
-      return res.status(400).json({
-        success: false,
-        message: "Severity and description are required.",
-      });
-    }
-
     // Generate AI reply using Hugging Face Inference API
     const chatCompletion = await client.chatCompletion({
       provider: "nebius",
@@ -99,14 +81,12 @@ export const getComplaintAIReply = async (req, res) => {
       chatCompletion.choices?.[0]?.message?.content ||
       "Sorry, I'm unable to provide a response right now.";
 
-    // Send success response with AI-generated reply
-    res.status(200).json({ success: true, reply });
-  } catch (error) {
-    // Log error and send failure response
-    console.error("Complaint AI error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Complaint AI service failed.",
+    res.status(HTTP_STATUS.OK).json({ 
+      success: true, 
+      reply 
     });
+  } catch (error) {
+    console.error("AI complaint reply error:", error);
+    return next(new ErrorResponse('Complaint AI service failed', HTTP_STATUS.INTERNAL_SERVER_ERROR));
   }
-};
+});

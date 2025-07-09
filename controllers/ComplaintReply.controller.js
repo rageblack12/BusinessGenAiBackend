@@ -1,38 +1,41 @@
-// controllers/complaintReplyController.js
 import ComplaintReply from '../models/ComplaintRelpy.model.js';
 import UserComplaint from '../models/UserComplaint.model.js';
+import { HTTP_STATUS } from '../constants/roles.js';
+import ErrorResponse from '../utils/ErrorResponse.js';
+import asyncHandler from '../utils/asyncHandler.js';
 
 /**
- * Create a reply for a specific user complaint.
+ * Create a reply for a specific user complaint
  * @route POST /api/complaint-replies
- * @body { content: String, complaintId: String }
- * @returns { success: Boolean, reply: Object }
+ * @access Private
  */
-export const createComplaintReply = async (req, res) => {
-  try {
-    const { content, complaintId } = req.body;
-    const userId = req.userInfo.userId;
+export const createComplaintReply = asyncHandler(async (req, res, next) => {
+  const { content, complaintId } = req.body;
+  const userId = req.userInfo.userId;
 
-    // Validate required fields
-    if (!content || !complaintId) {
-      return res.status(400).json({ success: false, message: "Content and complaintId are required." });
-    }
-
-    // Create new complaint reply document
-    const reply = await new ComplaintReply({
-      content,
-      user: userId, // Fixed: should be 'user' not 'userId' as per Mongoose model
-      complaint: complaintId // Fixed: should be 'complaint' not 'complaintId' as per Mongoose model
-    }).save();
-
-    // Add reply reference to the complaint
-    await UserComplaint.findByIdAndUpdate(complaintId, {
-      $push: { replies: reply._id }
-    });
-
-    res.status(201).json({ success: true, reply });
-  } catch (err) {
-    console.error("Error creating complaint reply:", err);
-    res.status(500).json({ success: false, message: "Failed to create reply" });
+  // Check if complaint exists
+  const complaint = await UserComplaint.findById(complaintId);
+  if (!complaint) {
+    return next(new ErrorResponse('Complaint not found', HTTP_STATUS.NOT_FOUND));
   }
-};
+
+  // Create new complaint reply
+  const reply = await ComplaintReply.create({
+    content,
+    userId,
+    complaintId
+  });
+
+  // Add reply reference to the complaint
+  await UserComplaint.findByIdAndUpdate(complaintId, {
+    $push: { replies: reply._id }
+  });
+
+  // Populate user info for response
+  await reply.populate('userId', 'name');
+
+  res.status(HTTP_STATUS.CREATED).json({ 
+    success: true, 
+    reply 
+  });
+});

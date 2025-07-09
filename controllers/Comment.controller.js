@@ -1,78 +1,91 @@
 import Post from '../models/Post.model.js';
 import Comment from '../models/Comment.model.js';
+import { HTTP_STATUS } from '../constants/roles.js';
+import ErrorResponse from '../utils/ErrorResponse.js';
+import asyncHandler from '../utils/asyncHandler.js';
 import fetch from 'node-fetch';
 
 /**
- * Helper function to classify sentiment of a customer comment using Hugging Face Inference API.
- * @param {string} customerComment - The comment text to analyze.
- * @returns {Promise<string>} - Returns 'Positive', 'Neutral', 'Negative', or 'Unknown'.
+ * Helper function to classify sentiment of a customer comment using Hugging Face Inference API
+ * @param {string} customerComment - The comment text to analyze
+ * @returns {Promise<string>} - Returns 'Positive', 'Neutral', 'Negative', or 'Unknown'
  */
 async function classifySentiment(customerComment) {
-  // Call Hugging Face sentiment analysis model
-  const response = await fetch(
-    "https://router.huggingface.co/hf-inference/models/cardiffnlp/twitter-roberta-base-sentiment",
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.HUGGING_FACE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      method: "POST",
-      body: JSON.stringify({ inputs: customerComment }),
+  try {
+    const response = await fetch(
+      "https://router.huggingface.co/hf-inference/models/cardiffnlp/twitter-roberta-base-sentiment",
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.HUGGING_FACE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+        body: JSON.stringify({ inputs: customerComment }),
+      }
+    );
+
+    let result = await response.json();
+    result = result[0] ? result[0] : [];
+
+    // Handle API error or unexpected response
+    if (!Array.isArray(result) || !result[0]?.label) {
+      console.error("Invalid response:", result);
+      return "Unknown";
     }
-  );
 
-  let result = await response.json();
-  result = result[0] ? result[0] : [];
+    // Extract top label from API response
+    const topLabel = result[0].label;
 
-  // Handle API error or unexpected response
-  if (!Array.isArray(result) || !result[0]?.label) {
-    console.error("Invalid response:", result);
+    // Map Hugging Face label to human-readable sentiment
+    const labelMap = {
+      "LABEL_0": "Negative",
+      "LABEL_1": "Neutral",
+      "LABEL_2": "Positive"
+    };
+    
+    return labelMap[topLabel] || "Unknown";
+  } catch (error) {
+    console.error("Sentiment analysis error:", error);
     return "Unknown";
   }
-
-  // Extract top label from API response
-  const topLabel = result[0].label;
-
-  // Map Hugging Face label to human-readable sentiment
-  const labelMap = {
-    "LABEL_0": "Negative",
-    "LABEL_1": "Neutral",
-    "LABEL_2": "Positive"
-  };
-  const sentiment = labelMap[topLabel] || "Unknown";
-  return sentiment;
 }
 
 /**
- * Controller to create a new comment on a post, with automatic sentiment classification.
+ * Create a new comment on a post with automatic sentiment classification
  * @route POST /api/comments
- * @body { content: String, postId: String }
- * @returns { success: Boolean, comment: Object }
+ * @access Private
  */
-export const createComment = async (req, res) => {
-  try {
-    const { content, postId } = req.body;
-    const userId = req.userInfo.userId;
+export const createComment = asyncHandler(async (req, res, next) => {
+  const { content, postId } = req.body;
+  const userId = req.userInfo.userId;
 
-    // Classify sentiment using helper
-    const sentiment = await classifySentiment(content);
-
-    // Create new comment document
-    const newComment = await new Comment({
-      content,
-      sentiment,
-      user: userId,
-      post: postId,
-    }).save();
-
-    // Add comment reference to the corresponding post
-    await Post.findByIdAndUpdate(postId, {
-      $push: { comments: newComment._id },
-    });
-
-    res.status(201).json({ success: true, comment: newComment });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: "Failed to create comment" });
+  // Check if post exists
+  const post = await Post.findById(postId);
+  if (!post) {
+    return next(new ErrorResponse('Post not found', HTTP_STATUS.NOT_FOUND));
   }
-};
+
+  // Classify sentiment using helper
+  const sentiment = await classifySentiment(content);
+
+  // Create new comment
+  const newComment = await Comment.create({
+    content,
+    sentiment,
+    user: userId,
+    post: postId,
+  });
+
+  // Add comment reference to the post
+  await Post.findByIdAndUpdate(postId, {
+    $push: { comments: newComment._id },
+  });
+
+  // Populate user info for response
+  await newComment.populate('user', 'name');
+
+  res.status(HTTP_STATUS.CREATED).json({ 
+    success: true, 
+    comment: newComment 
+  });
+});

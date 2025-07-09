@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { SENTIMENT_TYPES } from '../constants/roles.js';
 
 /**
  * Comment Schema
@@ -12,11 +13,30 @@ import mongoose from 'mongoose';
  * @property {Date} updatedAt
  */
 const commentSchema = new mongoose.Schema({
-  content: { type: String, required: true },
-  sentiment: { type: String, enum: ["Positive", "Neutral", "Negative"], required: true },
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  post: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', required: true },
-  replies: [{ type: mongoose.Schema.Types.ObjectId, ref: 'CommentReply' }],
+  content: { 
+    type: String, 
+    required: [true, 'Comment content is required'],
+    maxlength: [500, 'Comment cannot exceed 500 characters']
+  },
+  sentiment: { 
+    type: String, 
+    enum: Object.values(SENTIMENT_TYPES), 
+    required: true 
+  },
+  user: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User', 
+    required: true 
+  },
+  post: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Post', 
+    required: true 
+  },
+  replies: [{ 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'CommentReply' 
+  }],
 }, {
   timestamps: true,
 });
